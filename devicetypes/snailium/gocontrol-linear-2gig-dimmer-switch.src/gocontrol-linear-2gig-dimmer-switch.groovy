@@ -52,9 +52,9 @@ metadata {
         input "groupThreeEnable", "bool", title: "Enable Shade Group 3", required: false, defaultValue: false
         input "ledFlicker",       "enum", title: "LED Transmission Indication", description:"Flicker LED when...", required: false, options:["none": "Not flicker", "entire": "Flicker entire time of transmitting", "second": "Flicker for only 1 second"], defaultValue: "second"
 		
-        input "isAssociate",       "bool", title: "Associate to another Z-Wave device", required: false, defaultValue: false
-		input "associateTo",       "string", title: "The master device ID that this dimmer is associated to", required: false
-		input "associateBehavior", "enum", title: "Master device behavior to trigger this dimmer", required: false, options:["doubleTap": "Double tap master device to trigger this dimmer", "tripleTap": "Tap master device three times to trigger this dimmer"], defaultValue: "doubleTap"
+        //input "isAssociate",       "bool", title: "Associate to another Z-Wave device", required: false, defaultValue: false
+		//input "associateTo",       "string", title: "The master device ID that this dimmer is associated to", required: false
+		//input "associateBehavior", "enum", title: "Master device behavior to trigger this dimmer", required: false, options:["doubleTap": "Double tap master device to trigger this dimmer", "tripleTap": "Tap master device three times to trigger this dimmer"], defaultValue: "doubleTap"
 	}
 
 	tiles(scale: 2) {
@@ -79,12 +79,12 @@ metadata {
 			state "default", label:'', action:"refresh.refresh", icon:"st.secondary.refresh"
 		}
 
-		valueTile("level", "device.level", inactiveLabel: false, decoration: "flat", width: 2, height: 2) {
+		valueTile("level", "device.level", width: 4, height: 2, inactiveLabel: false, decoration: "flat") {
 			state "level", label:'Current level:\n${currentValue} %', unit:"%", backgroundColor:"#ffffff"
 		}
 
 		main(["switch"])
-		details(["switch", "indicator", "level", "refresh"])
+		details(["switch", "level", "indicator", "refresh"])
 
 	}
 }
@@ -335,11 +335,12 @@ def setLedFlicker(enable=true, entire=false) {
 
 def setAssociation(devId, groupId) {
     def devName = device.label ?: device.name
-    def nodeId  = Integer.parseInt(devId, 16)
+    def nodeId  = []
     def cmds    = []
     
+    nodeId << Integer.parseInt(devId, 16)
     cmds << zwave.associationV1.associationRemove(groupingIdentifier:groupId).format()
-    cmds << zwave.associationV1.associationSet(groupingIdentifier:groupId, nodeId:nodeid).format()
+    cmds << zwave.associationV1.associationSet(groupingIdentifier:groupId, nodeId:nodeId).format()
     cmds << zwave.associationV1.associationGet(groupingIdentifier:groupId).format()
     cmds << zwave.associationV1.associationGroupingsGet().format() 
 
