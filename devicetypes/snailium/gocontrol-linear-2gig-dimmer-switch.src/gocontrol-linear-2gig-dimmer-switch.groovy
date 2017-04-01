@@ -21,7 +21,10 @@ metadata {
 		capability "Refresh"
 		capability "Sensor"
 		capability "Health Check"
-
+        
+        command "configScene"
+  
+		//zw:L type:1104 mfr:014F prod:4457 model:3034 ver:5.41 zwv:3.42 lib:06 cc:26,2B,2C,27,73,70,86,72
 		fingerprint mfr:"014F", prod:"4457", model:"3034", deviceJoinName: "WD500Z Z-Wave Wall Dimmer"  // http://www.pepper1.net/zwavedb/device/482, http://products.z-wavealliance.org/products/1032
         fingerprint mfr:"014F", prod:"4457", model:"3331", deviceJoinName: "WD1000Z Z-Wave Wall Dimmer" // http://www.pepper1.net/zwavedb/device/483
 	}
@@ -51,11 +54,18 @@ metadata {
         input "groupTwoEnable",   "bool", title: "Enable Shade Group 2", required: false, defaultValue: false
         input "groupThreeEnable", "bool", title: "Enable Shade Group 3", required: false, defaultValue: false
         input "ledFlicker",       "enum", title: "LED Transmission Indication", description:"Flicker LED when...", required: false, options:["none": "Not flicker", "entire": "Flicker entire time of transmitting", "second": "Flicker for only 1 second"], defaultValue: "second"
-		
+        
         //input "isAssociate",       "bool", title: "Associate to another Z-Wave device", required: false, defaultValue: false
 		//input "associateTo",       "string", title: "The master device ID that this dimmer is associated to", required: false
 		//input "associateBehavior", "enum", title: "Master device behavior to trigger this dimmer", required: false, options:["doubleTap": "Double tap master device to trigger this dimmer", "tripleTap": "Tap master device three times to trigger this dimmer"], defaultValue: "doubleTap"
-	}
+
+/****************************Scene Program inputs - put in preferences******************************************************/
+		input "sceneNum", "value", title: "Scene Id to add (0-255)", required: false, defaultValue: 0
+        input "sceneLevel", "value", title: "Scene Brightness (0-100) (0 zero will disable the scene)", required: false, defaultValue: 0
+
+/******************************************************************************************************************************/
+
+}
 
 	tiles(scale: 2) {
 		multiAttributeTile(name:"switch", type: "lighting", width: 6, height: 4, canChangeIcon: true){
@@ -81,10 +91,15 @@ metadata {
 
 		valueTile("level", "device.level", width: 4, height: 2, inactiveLabel: false, decoration: "flat") {
 			state "level", label:'Current level:\n${currentValue} %', unit:"%", backgroundColor:"#ffffff"
-		}
+		}  
 
 		main(["switch"])
 		details(["switch", "level", "indicator", "refresh"])
+        
+/****************************Scene Program Controls - put in tiles******************************************************/
+
+
+/******************************************************************************************************************************/
 
 	}
 }
@@ -148,6 +163,7 @@ def updated(){
 }
 
 def parse(String description) {
+	log.debug "parse from linear wd500 >> zwave.parse($description)"
 	def result = null
 	if (description != "updated") {
 		log.debug "parse() >> zwave.parse($description)"
@@ -217,6 +233,13 @@ def zwaveEvent(physicalgraph.zwave.commands.manufacturerspecificv2.ManufacturerS
 def zwaveEvent(physicalgraph.zwave.commands.switchmultilevelv1.SwitchMultilevelStopLevelChange cmd) {
 	[createEvent(name:"switch", value:"on"), response(zwave.switchMultilevelV1.switchMultilevelGet().format())]
 }
+
+/****************************Scene Program Controls - parse handling******************************************************/
+
+
+/******************************************************************************************************************************/
+
+
 
 def zwaveEvent(physicalgraph.zwave.Command cmd) {
 	// Handles all Z-Wave commands we aren't interested in
@@ -332,6 +355,20 @@ def setLedFlicker(enable=true, entire=false) {
 	log.trace "$devName: setLedFlicker($enable, $entire): $cmd"
     return cmd
 }
+
+/**************************** Scene Program Controls - Commands  ******************************************************/
+
+def configScene() {
+	delayBetween([
+ 		zwave.sceneActuatorConfV1.sceneActuatorConfSet(sceneId:3, level:100, dimmingDuration:0xFF, override:1).format(),
+         zwave.sceneActuatorConfV1.sceneActuatorConfGet(sceneId:1).format(),
+         zwave.sceneActuatorConfV1.sceneActuatorConfGet(sceneId:2).format(),
+         zwave.sceneActuatorConfV1.sceneActuatorConfGet(sceneId:3).format()
+             
+	], 1000)
+}
+
+/******************************************************************************************************************************/
 
 def setAssociation(devId, groupId) {
     def devName = device.label ?: device.name
