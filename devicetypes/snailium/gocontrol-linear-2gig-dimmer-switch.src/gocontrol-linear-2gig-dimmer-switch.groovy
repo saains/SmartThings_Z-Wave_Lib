@@ -9,7 +9,9 @@
  *  Unless required by applicable law or agreed to in writing, software distributed under the License is distributed
  *  on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License
  *  for the specific language governing permissions and limitations under the License.
- *
+ ****
+ * Added functionality and controls to allow setting scenes to be controlled by zwave scene controllers.
+ * The scene ID and Level are entered in to the preferences. The scene is then set by sending the command a standard tile.
  */
 metadata {
 	definition (name: "GoControl/Linear/2gig Dimmer Switch", namespace: "snailium", author: "snailium") {
@@ -22,7 +24,16 @@ metadata {
 		capability "Sensor"
 		capability "Health Check"
         
+ // *************************Scene definition***********************************************************      
         command "configScene"
+        command "reportScene"
+ 
+
+    attribute "dataScene", "string"
+    attribute "setScene", "enum", ["Set_Scene", "Setting_Scene"]
+        
+        
+// *************************************************************************************        
   
 		//zw:L type:1104 mfr:014F prod:4457 model:3034 ver:5.41 zwv:3.42 lib:06 cc:26,2B,2C,27,73,70,86,72
 		fingerprint mfr:"014F", prod:"4457", model:"3034", deviceJoinName: "WD500Z Z-Wave Wall Dimmer"  // http://www.pepper1.net/zwavedb/device/482, http://products.z-wavealliance.org/products/1032
@@ -60,8 +71,10 @@ metadata {
 		//input "associateBehavior", "enum", title: "Master device behavior to trigger this dimmer", required: false, options:["doubleTap": "Double tap master device to trigger this dimmer", "tripleTap": "Tap master device three times to trigger this dimmer"], defaultValue: "doubleTap"
 
 /****************************Scene Program inputs - put in preferences******************************************************/
-		input "sceneNum", "value", title: "Scene Id to add (0-255)", required: false, defaultValue: 0
-        input "sceneLevel", "value", title: "Scene Brightness (0-100) (0 zero will disable the scene)", required: false, defaultValue: 0
+
+		input "sceneNum", "number", title: "Scene Id to add (0-255)", required: false
+        input "sceneLevel", "number", title: "Scene Brightness (0-100) (0 zero will disable the scene)", required: false
+
 
 /******************************************************************************************************************************/
 
@@ -75,36 +88,50 @@ metadata {
 				attributeState "turningOn", label:'${name}', action:"switch.off", icon:"st.switches.switch.on", backgroundColor:"#79b821", nextState:"turningOff"
 				attributeState "turningOff", label:'${name}', action:"switch.on", icon:"st.switches.switch.off", backgroundColor:"#ffffff", nextState:"turningOn"
 			}
-			tileAttribute ("device.level", key: "SLIDER_CONTROL") {
+    			tileAttribute ("device.level", key: "SLIDER_CONTROL") {
 				attributeState "level", action:"switch level.setLevel"
 			}
 		}
-
-		standardTile("indicator", "device.indicatorStatus", width: 2, height: 2, inactiveLabel: false, decoration: "flat") {
+        
+		standardTile("indicator", "device.indicatorStatus", width: 1, height: 1, inactiveLabel: false, decoration: "flat") {
 			state "when off", action:"indicator.indicatorWhenOn", icon:"st.indicators.lit-when-off"
 			state "when on", action:"indicator.indicatorNever", icon:"st.indicators.lit-when-on"
 		}
 
-		standardTile("refresh", "device.switch", width: 2, height: 2, inactiveLabel: false, decoration: "flat") {
+
+
+        
+/****************************Scene Program Controls - put in tiles*******************************************************/
+
+        standardTile("dataScene", "device.dataScene", width: 3, height: 1, inactiveLabel: false, decoration: "flat") {
+        	state "default", label: '${currentValue}', action:"reportScene"        	
+
+    		}
+       standardTile("setScene", "device.setScene", width: 2, height: 1, inactiveLabel: false, decoration: "flat") {
+        	state "Set_Scene", label: '${name}', action:"configScene", nextState: "Setting_Scene"      	
+			state "Setting_Scene", label: '${name}' //, nextState: "Set_Scene"
+    		}
+        
+       //add  "dataScene" and "setScene" to the details([]) line.
+/******************************************************************************************************************************/
+
+		standardTile("refresh", "device.switch", width: 1, height: 1, inactiveLabel: false, decoration: "flat") {
 			state "default", label:'', action:"refresh.refresh", icon:"st.secondary.refresh"
 		}
-
-		valueTile("level", "device.level", width: 4, height: 2, inactiveLabel: false, decoration: "flat") {
+        
+		valueTile("level", "device.level", width:2, height: 1, inactiveLabel: false, decoration: "flat") {
 			state "level", label:'Current level:\n${currentValue} %', unit:"%", backgroundColor:"#ffffff"
 		}  
 
 		main(["switch"])
-		details(["switch", "level", "indicator", "refresh"])
+		details(["switch", "level", "indicator", "refresh","setScene", "dataScene"])
         
-/****************************Scene Program Controls - put in tiles******************************************************/
-
-
-/******************************************************************************************************************************/
 
 	}
 }
 
 def updated(){
+
 	// Device-Watch simply pings if no device events received for 32min(checkInterval)
 	sendEvent(name: "checkInterval", value: 2 * 15 * 60 + 2 * 60, displayed: false, data: [protocol: "zwave", hubHardwareId: device.hub.hardwareID])
     
@@ -160,6 +187,7 @@ def updated(){
 	} else {
     	removeAssociation()
     }
+
 }
 
 def parse(String description) {
@@ -235,8 +263,12 @@ def zwaveEvent(physicalgraph.zwave.commands.switchmultilevelv1.SwitchMultilevelS
 }
 
 /****************************Scene Program Controls - parse handling******************************************************/
-
-
+def zwaveEvent(physicalgraph.zwave.commands.sceneactuatorconfv1.SceneActuatorConfReport cmd) {
+	log.debug "SceneActuatorConfReport $cmd"
+	def Scene = cmd.sceneId
+    def Level = cmd.level
+	createEvent([name: "dataScene", value: "SceneId: $Scene, level: $Level"])
+    }
 /******************************************************************************************************************************/
 
 
@@ -349,24 +381,25 @@ def setGroupEnable(groupTwoEnable=false, groupThreeEnable=false) {
 }
 
 def setLedFlicker(enable=true, entire=false) {
-	def devName = device.label ?: device.name
-	def configVal = enable ? (entire ? 1 : 2) : 0
-	def cmd = zwave.configurationV1.configurationSet(parameterNumber: 19, configurationValue: [configVal], size: 1).format()
-	log.trace "$devName: setLedFlicker($enable, $entire): $cmd"
-    return cmd
+	invertSwitch
 }
 
 /**************************** Scene Program Controls - Commands  ******************************************************/
 
 def configScene() {
 	delayBetween([
- 		zwave.sceneActuatorConfV1.sceneActuatorConfSet(sceneId:3, level:100, dimmingDuration:0xFF, override:1).format(),
-         zwave.sceneActuatorConfV1.sceneActuatorConfGet(sceneId:1).format(),
-         zwave.sceneActuatorConfV1.sceneActuatorConfGet(sceneId:2).format(),
-         zwave.sceneActuatorConfV1.sceneActuatorConfGet(sceneId:3).format()
-             
+    zwave.sceneActuatorConfV1.sceneActuatorConfSet(sceneId:sceneNum, level:sceneLevel, dimmingDuration:0xFF, override:1).format(),
+    zwave.sceneActuatorConfV1.sceneActuatorConfGet(sceneId:sceneNum).format(),
+    sendEvent([name: "setScene", value: "Set_Scene"])
 	], 1000)
 }
+
+def reportScene() {
+	delayBetween([
+    zwave.sceneActuatorConfV1.sceneActuatorConfGet(sceneId:sceneNum).format()
+	], 1000)
+}
+
 
 /******************************************************************************************************************************/
 
