@@ -185,7 +185,7 @@ def updated(){
                 break
 		}
 	} else {
-    	removeAssociation()
+//    	removeAssociation()
     }
 
 }
@@ -267,10 +267,8 @@ def zwaveEvent(physicalgraph.zwave.commands.sceneactuatorconfv1.SceneActuatorCon
 	log.debug "SceneActuatorConfReport $cmd"
 	def Scene = cmd.sceneId
     def Level = cmd.level
-	createEvent([name: "dataScene", value: "SceneId: $Scene, level: $Level"])
-    }
+	createEvent([name: "dataScene", value: "SceneId: $Scene, level: $Level"])}
 /******************************************************************************************************************************/
-
 
 
 def zwaveEvent(physicalgraph.zwave.Command cmd) {
