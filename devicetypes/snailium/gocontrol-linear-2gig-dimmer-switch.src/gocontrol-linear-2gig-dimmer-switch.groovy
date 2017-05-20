@@ -12,6 +12,7 @@
  ****
  * Added functionality and controls to allow setting scenes to be controlled by zwave scene controllers.
  * The scene ID and Level are entered in to the preferences. The scene is then set by sending the command a standard tile.
+ * Version .2 added evolve dimmer fingerprint
  */
 metadata {
 	definition (name: "GoControl/Linear/2gig Dimmer Switch", namespace: "snailium", author: "snailium") {
@@ -38,6 +39,7 @@ metadata {
 		//zw:L type:1104 mfr:014F prod:4457 model:3034 ver:5.41 zwv:3.42 lib:06 cc:26,2B,2C,27,73,70,86,72
 		fingerprint mfr:"014F", prod:"4457", model:"3034", deviceJoinName: "WD500Z Z-Wave Wall Dimmer"  // http://www.pepper1.net/zwavedb/device/482, http://products.z-wavealliance.org/products/1032
         fingerprint mfr:"014F", prod:"4457", model:"3331", deviceJoinName: "WD1000Z Z-Wave Wall Dimmer" // http://www.pepper1.net/zwavedb/device/483
+        fingerprint mfr:"0113", prod:"4457", model:"3034", deviceJoinName: "LRM-AS Evolve Z-Wave Wall Dimmer" // http://products.z-wavealliance.org/products/99
 	}
 
 	simulator {
@@ -103,11 +105,11 @@ metadata {
         
 /****************************Scene Program Controls - put in tiles*******************************************************/
 
-        standardTile("dataScene", "device.dataScene", width: 3, height: 1, inactiveLabel: false, decoration: "flat") {
+        valueTile("dataScene", "device.dataScene", width: 3, height: 1, inactiveLabel: false, decoration: "flat") {
         	state "default", label: '${currentValue}', action:"reportScene"        	
 
     		}
-       standardTile("setScene", "device.setScene", width: 2, height: 1, inactiveLabel: false, decoration: "flat") {
+       valueTile("setScene", "device.setScene", width: 2, height: 1, inactiveLabel: false, decoration: "flat") {
         	state "Set_Scene", label: '${name}', action:"configScene", nextState: "Setting_Scene"      	
 			state "Setting_Scene", label: '${name}' //, nextState: "Set_Scene"
     		}
