@@ -13,6 +13,7 @@
  * Added functionality and controls to allow setting scenes to be controlled by zwave scene controllers.
  * The scene ID and Level are entered in to the preferences. The scene is then set by sending the command a standard tile.
  * Version .2 added evolve dimmer fingerprint
+ * Version .21 set levels to 0-99 rather than 0-100
  */
 metadata {
 	definition (name: "GoControl/Linear/2gig Dimmer Switch", namespace: "snailium", author: "snailium") {
@@ -75,7 +76,7 @@ metadata {
 /****************************Scene Program inputs - put in preferences******************************************************/
 
 		input "sceneNum", "number", title: "Scene Id to add (0-255)", required: false
-        input "sceneLevel", "number", title: "Scene Brightness (0-100) (0 zero will disable the scene)", required: false
+        input "sceneLevel", "number", title: "Scene Brightness (0-99) (0 zero will disable the scene)", required: false
 
 
 /******************************************************************************************************************************/
@@ -387,11 +388,24 @@ def setLedFlicker(enable=true, entire=false) {
 /**************************** Scene Program Controls - Commands  ******************************************************/
 
 def configScene() {
-	delayBetween([
-    zwave.sceneActuatorConfV1.sceneActuatorConfSet(sceneId:sceneNum, level:sceneLevel, dimmingDuration:0xFF, override:1).format(),
-    zwave.sceneActuatorConfV1.sceneActuatorConfGet(sceneId:sceneNum).format(),
+ 	def scene = 0x00 
+    def level = 0x00
+	if (sceneNum && sceneLevel){
+     scene = sceneNum as int
+    
+     level = sceneLevel as int
+      if (level >= 100) {level = 99}
+    log.debug "scene is:$scene and level is:$level"
+    delayBetween([
+    zwave.sceneActuatorConfV1.sceneActuatorConfSet(sceneId:scene, level:level, dimmingDuration:0xFF, override:1).format(),
+    zwave.sceneActuatorConfV1.sceneActuatorConfGet(sceneId:scene).format(),
     sendEvent([name: "setScene", value: "Set_Scene"])
 	], 1000)
+    
+    }
+    else {log.debug "Scene number or level not set"}
+   
+ 	
 }
 
 def reportScene() {
